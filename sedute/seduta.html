@@ -1,0 +1,119 @@
+<!DOCTYPE html>
+<html lang="it">
+<head>
+	<meta charset="utf-8">
+	<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+	<!--script src="https://cdn.jsdelivr.net/npm/vue"></script-->
+	<script src="https://unpkg.com/vue/dist/vue.global.prod.js"></script>
+	<link rel="stylesheet" type="text/css" href="seduta.css">
+	<link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" integrity="sha384-9ndCyUaIbzAi2FUVXJi0CjmCapSmO7SnpJef0486qhLnuZ2cdeRhO02iuK6FUUVM" crossorigin="anonymous">
+	<script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/js/bootstrap.bundle.min.js" integrity="sha384-geWF76RCwLtnZ8qwWowPQNguL3RmwHVBC9FhGdlKrxdiJJigb/j/68SIy3Te4Bkz" crossorigin="anonymous"></script>
+	<script src="https://cdn.jsdelivr.net/npm/chart.js@4.3.0/dist/chart.umd.min.js"></script>
+	<title>Seduta - Presenze e votazioni del consiglio comunale di Bologna</title>
+</head>
+<body>
+	<div id="app" v-cloak>
+		<header class="m-0 p-0 row">
+			<h1 class="col-12">Presenze e votazioni del consiglio comunale di Bologna</h1>
+			<div class="row col-12 m-0 p-0 justify-content-center">
+				<span id="sed-date-div">Seduta del {{sedDay}}</span>
+			</div>
+		</header>
+		<main class="m-0 p-0 row">
+			<section id="info-section-mobile" class="row ms-0 me-0 p-0">
+				<h2>Info seduta</h2>
+				<div id="info-left-div" class="col-6 row m-0">
+					<span class="pt-1">Data</span>
+					<span>Numero presenti</span>
+					<span class="pb-1">Numero assenti</span>
+				</div>
+				<div id="info-right-div" class="col-6 row m-0">
+					<span class="pt-1">{{sedDay}}</span>
+					<span>{{pres}}</span>
+					<span class="pb-1">{{abs}}</span>
+				</div>
+			</section>
+
+			<section id="info-section-desktop" class="col-md-2 p-0">
+				<h2>Info seduta</h2>
+				<div>
+					<div>
+						<span>Data</span>
+						<span>{{sedDay}}</span>
+					</div>
+					<div>
+						<span>Numero presenti</span>
+						<span>{{pres}}</span>
+					</div>
+					<div>
+						<span>Numero assenti</span>
+						<span>{{abs}}</span>
+					</div>
+				</div>
+				<p id="warning-p-desktop" v-if="sedDay == '2019-09-23' || sedDay == '2012-11-05'">
+					ATTENZIONE: i dati relativi a questa seduta forniti dal Comune di Bologna sono molto confusionari. Pertanto, non farci troppo affidamento.
+				</p>
+			</section>
+
+			<div class="col-0 col-md-1"></div>
+
+			<p id="warning-p-mobile" v-if="sedDay == '2019-09-23' || sedDay == '2012-11-05'">
+				ATTENZIONE: i dati relativi a questa seduta forniti dal Comune di Bologna sono molto confusionari. Pertanto, non farci troppo affidamento.
+			</p>
+
+			<section class="row col-12 col-md-9 m-0 p-0">
+				<table class="col-12 p-0">
+					<thead class="col-12 m-0 p-0">
+						<tr class="row col-12 p-0 m-0">
+							<th class="col-4" scope="col" id="nominativo-th">Nominativo</th>
+							<th class="col-4" scope="col" id="gruppo-politico-th">Gruppo politico</th>
+							<th class="col-2 ps-0 pe-0 numeric-th" scope="col" id="presenza-th">Pres.</th>
+							<th class="col-2 numeric-th" scope="col" id="num-e-perc-th">Num. (%) votaz.</th>
+						</tr>
+					</thead>
+					<tbody class="col-12 p-0 m-0">
+						<tr class="row col-12 p-0 m-0" v-for="c in participants">
+							<td class="col-4" headers="nominativo-th">{{c}}</td>
+							<td class="col-4" headers="gruppo-politico-th">{{partProps[c].group}}</td>
+							<td class="col-2 numeric-td" headers="presenza-th" v-if="partProps[c].presence"><presence-div></presence-div></td>
+							<td class="col-2 numeric-td" headers="presenza-th" v-else><absence-div></absence-div></td>
+							<td class="col-2 numeric-td" headers="num-e-perc-th">{{partProps[c].numVot}} ({{partProps[c].percVot}}%)</td>
+						</tr>
+					</tbody>
+				</table>
+
+				<section id="charts-section" class="col-md-12 p-0">
+					<nav class="row m-0 p-0">
+						<ul class="col-12 row m-0 p-0">
+							<li class="col-6 row m-0 p-0">
+								<button id="presenze-button" class="col-12 m-0 p-0" :class="{'selected-button': graphToShow == 'presenze'}" @click="changeChart('presenze')">Presenze per gruppo</button>
+							</li>
+							<li class="col-6 row m-0 p-0">
+								<button id="votazioni-button" class="col-12 m-0 p-0" :class="{'selected-button': graphToShow == 'votazioni'}" @click="changeChart('votazioni')">Votazioni per gruppo</button>
+							</li>
+						</ul>
+					</nav>
+
+					<div id="presenze-div" v-show="graphToShow == 'presenze'" class="selected-chart-div">
+						<section class="row m-0 pt-0 pb-0 ps-2 pe-2" v-for="g in groups">
+							<span class="col-6 m-0 p-0">{{g}}</span>
+							<div class="col-6 m-0 p-0">
+								<presence-div v-for="i in groupsParticipants[g].pres"></presence-div>
+								<absence-div v-for="i in groupsParticipants[g].abs"></absence-div>
+							</div>
+						</section>
+					</div>
+
+					<div id="votazioni-div" v-show="graphToShow == 'votazioni'">
+						<div>
+							<canvas id="votazioni-chart"></canvas>
+						</div>
+					</div>
+				</section>
+			</section>
+		</main>
+	</div>
+
+	<script type="module" src="seduta.js"></script>
+</body>
+</html>
